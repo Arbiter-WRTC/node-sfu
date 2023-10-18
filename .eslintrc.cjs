@@ -1,13 +1,13 @@
 module.exports = {
-  extends: [
-    'airbnb',
-    'eslint:recommended'
-  ],
+  extends: ['airbnb', 'eslint:recommended'],
   plugins: ['import'],
   env: {
     // browser: true,
     es6: true,
     node: true,
   },
-  rules: {}
+  rules: {
+    'no-console': 'off',
+    'import/no-extraneous-dependencies': ['error', { devDependencies: true }],
+  },
 };
