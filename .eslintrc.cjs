@@ -8,7 +8,10 @@ module.exports = {
   },
   rules: {
     'no-console': 'off',
-    'import/no-extraneous-dependencies': ['error', { devDependencies: true }],
+    'import/no-extraneous-dependencies': [
+      'error',
+      { devDependencies: true, dependencies: true },
+    ],
     'max-classes-per-file': 'off', // this needs to be removed later
   },
 };
