@@ -139,7 +139,7 @@ class Consumer {
       //   'attempting to handle an ICE candidate type ',
       //   candidate.type
       // );
-      this.socket.emit('consumerHandshake', { candidate, clientId: this.id });
+      this.socket.emit('consumerHandshake', { candidate, clientId: this.id, remotePeerId: this.remotePeerId });
     }
   }
 
@@ -150,6 +150,7 @@ class Consumer {
     this.socket.emit('consumerHandshake', {
       description: this.connection.localDescription,
       clientId: this.id,
+      remotePeerId: this.remotePeerId
     });
   }
 
