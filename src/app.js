@@ -63,7 +63,7 @@ class Producer {
   handleRtcConnectionStateChange() {
     console.log(`State changed to ${this.connection.connectionState}`);
   }
-  
+
   async handshake(description, candidate) {
     if (description) {
       console.log('trying to negotiate', description.type);
@@ -115,7 +115,8 @@ class Producer {
 }
 
 class Consumer {
-  constructor(remotePeerId, socket) {
+  constructor(remotePeerId, socket, clientId) {
+    this.clientId = clientId;
     this.connection = new RTCPeerConnection(RTC_CONFIG);
     this.remotePeerId = remotePeerId;
     this.socket = socket;
@@ -139,18 +140,23 @@ class Consumer {
       //   'attempting to handle an ICE candidate type ',
       //   candidate.type
       // );
-      this.socket.emit('consumerHandshake', { candidate, clientId: this.id, remotePeerId: this.remotePeerId });
+      this.socket.emit('consumerHandshake', {
+        candidate,
+        clientId: this.clientId,
+        remotePeerId: this.remotePeerId,
+      });
     }
   }
 
   async handleRtcConnectionNegotiation() {
     console.log('Consumer attempting offer ...');
-    const offer = await this.connection.createOffer()
+    const offer = await this.connection.createOffer();
     await this.connection.setLocalDescription(offer);
+    console.log(this.clientId);
     this.socket.emit('consumerHandshake', {
       description: this.connection.localDescription,
-      clientId: this.id,
-      remotePeerId: this.remotePeerId
+      clientId: this.clientId,
+      remotePeerId: this.remotePeerId,
     });
   }
 
@@ -206,11 +212,13 @@ class Client {
 
   consumerHandshake(remotePeerId, description, candidate) {
     const consumer = this.findConsumerById(remotePeerId);
+    console.log(this.consumers);
+    console.log('Calling handhsake for consumer with id:', remotePeerId);
     consumer.handshake(description, candidate);
   }
 
   getProducerTrack(kind) {
-    return this.producer.mediaTracks[kind]
+    return this.producer.mediaTracks[kind];
   }
 
   addConsumerTrack(remotePeerId, track) {
@@ -219,7 +227,7 @@ class Client {
       consumer = this.createConsumer(remotePeerId);
     }
 
-    consumer.addTrack(track)
+    consumer.addTrack(track);
   }
 
   findConsumerById(remotePeerId) {
@@ -227,8 +235,11 @@ class Client {
   }
 
   createConsumer(remotePeerId) {
-    console.log('a new consumer is added')
-    this.consumers.set(remotePeerId, new Consumer(remotePeerId, this.socket));
+    console.log('a new consumer is added');
+    this.consumers.set(
+      remotePeerId,
+      new Consumer(remotePeerId, this.socket, this.id)
+    );
     return this.consumers.get(remotePeerId);
   }
 }
@@ -250,7 +261,7 @@ class SFU {
     console.log('Handling Producer Track Event, Track added for:', id);
     this.clients.forEach((client, clientId) => {
       if (clientId === id) {
-        this.consumerCatchup(clientId)
+        this.consumerCatchup(clientId);
         return;
       }
 
@@ -264,12 +275,12 @@ class SFU {
       if (clientId === catchupClientId) {
         return;
       }
-      
-      const tracks = Object.values(client.producer.mediaTracks)
-      tracks.forEach(track => {
+
+      const tracks = Object.values(client.producer.mediaTracks);
+      tracks.forEach((track) => {
         catchupClient.addConsumerTrack(clientId, track);
-      })
-    })
+      });
+    });
   }
 
   bindSocketEvents() {
@@ -278,7 +289,10 @@ class SFU {
       'producerHandshake',
       this.handleProducerHandshake.bind(this)
     );
-    this.socket.on('consumerHandshake', this.handleConsumerHandshake.bind(this));
+    this.socket.on(
+      'consumerHandshake',
+      this.handleConsumerHandshake.bind(this)
+    );
   }
 
   handleConnect() {
@@ -296,10 +310,15 @@ class SFU {
     client.producerHandshake(description, candidate);
   }
 
-  async handleConsumerHandshake({ clientId, remotePeerId, description, candidate}) {
+  async handleConsumerHandshake({
+    clientId,
+    remotePeerId,
+    description,
+    candidate,
+  }) {
     let client = this.findClientById(clientId);
     if (client) {
-      client.consumerHandshake({remotePeerId, description, candidate})
+      client.consumerHandshake(remotePeerId, description, candidate);
     }
   }
 
