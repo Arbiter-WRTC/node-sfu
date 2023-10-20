@@ -263,6 +263,7 @@ class SFU {
       if (clientId === catchupClientId) {
         return;
       }
+      
       const tracks = Object.values(client.producer.mediaTracks)
       tracks.forEach(track => {
         catchupClient.addConsumerTrack(clientId, track);
