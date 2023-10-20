@@ -5,17 +5,7 @@ import { RTCPeerConnection } from 'wrtc';
 import https from 'https';
 import fs from 'fs';
 
-/* tmp notes
-
-1. Refactor to use Client Object
-Client Object
- - one Producer
- - many Consumers
-
- 2. SFU will have collection of Client objects
-
-*/
-
+import EventEmitter from 'events';
 
 /*
 run this to run SFU locally to generate self-signed certificates
@@ -35,7 +25,7 @@ app.use(cors());
 const RTC_CONFIG = null;
 
 class Producer {
-  constructor(socket, id) {
+  constructor(socket, id, eventEmitter) {
     this.id = id;
     this.connection = new RTCPeerConnection(RTC_CONFIG);
     this.registerConnectionCallbacks();
@@ -43,6 +33,8 @@ class Producer {
     this.isNegotiating = false;
     this.addChatChannel();
     this.mediaTracks = {};
+
+    this.eventEmitter = eventEmitter;
   }
 
   registerConnectionCallbacks() {
@@ -65,13 +57,12 @@ class Producer {
 
   handleRtcPeerTrack({ track }) {
     console.log(`handle incoming ${track.kind} track...`);
-    // this.connection.mediaTracks[track.kind] = track;
-    // this.connection.addTrack(track);
+    this.mediaTracks[track.kind] = track;
+    this.eventEmitter.emit('producerTrack', { id: this.id, kind: track.kind });
   }
 
   handleRtcConnectionStateChange() {
     console.log(`State changed to ${this.connection.connectionState}`);
-    console.log(this.connection.chatChannel);
   }
 
   addChatChannel() {
@@ -88,12 +79,15 @@ class Producer {
 }
 
 class Client {
-  constructor(id, socket) {
+  constructor(id, socket, eventEmitter) {
     this.socket = socket;
     this.id = id;
-    this.producer = new Producer(this.socket, id);
+    this.eventEmitter = eventEmitter;
+    this.producer = new Producer(this.socket, id, this.eventEmitter);
     this.consumers = new Map();
   }
+
+  createNewConsumer() {}
 
   async producerHandshake(description, candidate) {
     if (description) {
@@ -129,7 +123,30 @@ class Client {
           console.log('unable to add ICE candidate for peer', e);
         }
       }
-    }    
+    }
+  }
+
+  getProducerTrack(kind) {
+    // return this.producer;
+    // mediaTracks[kind];
+    // tracks;
+  }
+
+  addConsumerTrack(remotePeerId, track) {
+    let consumer = this.findConsumerById(remotePeerId);
+    if (!consumer) {
+      consumer = this.createConsumer(remotePeerId);
+    }
+    // TODO: Add track to consumer
+  }
+
+  findConsumerById(remotePeerId) {
+    return this.consumers.get(remotePeerId);
+  }
+
+  createConsumer(remotePeerId) {
+    this.consumers.set(remotePeerId, new Consumer(remotePeerId, this.socket));
+    return this.consumers.get(remotePeerId);
   }
 }
 
@@ -138,6 +155,25 @@ class SFU {
     this.clients = new Map();
     this.socket = io(socketUrl);
     this.bindSocketEvents();
+    this.eventEmitter = new EventEmitter();
+    this.bindClientEvents();
+  }
+
+  bindClientEvents() {
+    this.eventEmitter.on('producerTrack', this.handleProducerTrack.bind(this));
+  }
+
+  handleProducerTrack({ id, kind }) {
+    console.log('Handling Producer Track Event, Track added for:', id);
+    const client = this.findClientById(id);
+    const track = client.getProducerTrack(kind);
+    this.clients.forEach((client, clientId) => {
+      if (clientId === id) {
+        return;
+      }
+
+      client.addConsumerTrack(id, track);
+    });
   }
 
   bindSocketEvents() {
@@ -158,13 +194,13 @@ class SFU {
 
     if (!client) {
       client = this.addClient(clientId);
-    } 
-    console.log(client);
+    }
+
     client.producerHandshake(description, candidate);
   }
 
   addClient(id) {
-    this.clients.set(id, new Client(id, this.socket));
+    this.clients.set(id, new Client(id, this.socket, this.eventEmitter));
     return this.clients.get(id);
   }
 
@@ -174,10 +210,11 @@ class SFU {
 }
 
 class Consumer {
-  constructor() {
-    // TODO: Create a new WebRTC Connection
-    // this.consumers = new Map();
-
+  constructor(remotePeerId, socket) {
+    //TODO: Create a new WebRTC Connection
+    this.remotePeerId = remotePeerId;
+    this.socket = socket;
+    this.connection = new RTCPeerConnection(RTC_CONFIG);
   }
 }
 
