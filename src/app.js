@@ -7,7 +7,10 @@ import fs from 'fs';
 
 /*
 run this to run SFU locally to generate self-signed certificates
-openssl req -new -neopenssl req -new -newkey rsa:2048 -days 365 -nodes -x509 -keyout server.key -out server.crt
+  openssl req -new -neopenssl req -new -newkey rsa:2048 -days 365 -nodes -x509 -keyout server.key -out server.crt
+mac:
+  openssl req -newkey rsa:2048 -days 365 -nodes -x509 -keyout server.key -out server.crt
+
 */
 
 const privateKey = fs.readFileSync('server.key', 'utf8');

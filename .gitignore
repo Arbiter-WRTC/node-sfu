@@ -1,4 +1,4 @@
-.env
+w.env
 # Logs
 logs
 *.log
@@ -13,3 +13,7 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 package-lock.json
+node_modules
+
+server.crt
+server.key
