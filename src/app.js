@@ -5,9 +5,23 @@ import { RTCPeerConnection } from 'wrtc';
 import https from 'https';
 import fs from 'fs';
 
+/* tmp notes
+
+1. Refactor to use Client Object
+Client Object
+ - one Producer
+ - many Consumers
+
+ 2. SFU will have collection of Client objects
+
+*/
+
+
 /*
 run this to run SFU locally to generate self-signed certificates
-openssl req -new -neopenssl req -new -newkey rsa:2048 -days 365 -nodes -x509 -keyout server.key -out server.crt
+UBUNTU: openssl req -new -neopenssl req -new -newkey rsa:2048 -days 365 -nodes -x509 -keyout server.key -out server.crt
+MACOS: openssl req -newkey rsa:2048 -days 365 -nodes -x509 -keyout server.key -out server.crt
+
 */
 
 const privateKey = fs.readFileSync('server.key', 'utf8');
@@ -25,7 +39,6 @@ class Producer {
     this.id = id;
     this.connection = new RTCPeerConnection(RTC_CONFIG);
     this.registerConnectionCallbacks();
-    this.consumers = new Map();
     this.socket = socket;
     this.isNegotiating = false;
     this.addChatChannel();
@@ -74,9 +87,55 @@ class Producer {
   }
 }
 
+class Client {
+  constructor(id, socket) {
+    this.socket = socket;
+    this.id = id;
+    this.producer = new Producer(this.socket, id);
+    this.consumers = new Map();
+  }
+
+  async producerHandshake(description, candidate) {
+    if (description) {
+      console.log('trying to negotiate', description.type);
+
+      if (this.isNegotiating) {
+        console.log('Skipping nested negotiations');
+        return;
+      }
+
+      this.isNegotiating = true;
+      await this.producer.connection.setRemoteDescription(description);
+      this.isNegotiating = false;
+
+      if (description.type === 'offer') {
+        const answer = await this.producer.connection.createAnswer();
+        await this.producer.connection.setLocalDescription(answer);
+
+        console.log(
+          `Sending ${this.producer.connection.localDescription.type} to ${this.id}`
+        );
+        this.socket.emit('producerHandshake', {
+          description: this.producer.connection.localDescription,
+          clientId: this.id,
+        });
+      }
+    } else if (candidate) {
+      try {
+        console.log('Adding an ice candidate');
+        await this.producer.connection.addIceCandidate(candidate);
+      } catch (e) {
+        if (candidate.candidate.length > 1) {
+          console.log('unable to add ICE candidate for peer', e);
+        }
+      }
+    }    
+  }
+}
+
 class SFU {
   constructor(socketUrl) {
-    this.producers = new Map();
+    this.clients = new Map();
     this.socket = io(socketUrl);
     this.bindSocketEvents();
   }
@@ -95,60 +154,30 @@ class SFU {
   }
 
   async handleProducerHandshake({ clientId, description, candidate }) {
-    let producer = this.findProducerById(clientId);
-    if (!producer) {
-      producer = this.addProducer(clientId);
-    }
+    let client = this.findClientById(clientId);
 
-    if (description) {
-      console.log('trying to negotiate', description.type);
-
-      if (this.isNegotiating) {
-        console.log('Skipping nested negotiations');
-        return;
-      }
-
-      this.isNegotiating = true;
-      await producer.connection.setRemoteDescription(description);
-      this.isNegotiating = false;
-
-      if (description.type === 'offer') {
-        const answer = await producer.connection.createAnswer();
-        await producer.connection.setLocalDescription(answer);
-
-        console.log(
-          `Sending ${producer.connection.localDescription.type} to ${clientId}`
-        );
-        this.socket.emit('producerHandshake', {
-          description: producer.connection.localDescription,
-          clientId,
-        });
-      }
-    } else {
-      try {
-        console.log('Adding an ice candidate');
-        await producer.connection.addIceCandidate(candidate);
-      } catch (e) {
-        if (candidate.candidate.length > 1) {
-          console.log('unable to add ICE candidate for peer', e);
-        }
-      }
-    }
+    if (!client) {
+      client = this.addClient(clientId);
+    } 
+    console.log(client);
+    client.producerHandshake(description, candidate);
   }
 
-  addProducer(id) {
-    this.producers.set(id, new Producer(this.socket, id));
-    return this.producers.get(id);
+  addClient(id) {
+    this.clients.set(id, new Client(id, this.socket));
+    return this.clients.get(id);
   }
 
-  findProducerById(id) {
-    return this.producers.get(id);
+  findClientById(id) {
+    return this.clients.get(id);
   }
 }
 
 class Consumer {
   constructor() {
     // TODO: Create a new WebRTC Connection
+    // this.consumers = new Map();
+
   }
 }
 
