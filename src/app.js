@@ -21,7 +21,14 @@ const app = express();
 const httpsServer = https.createServer(credentials, app);
 
 app.use(cors());
-const RTC_CONFIG = null;
+const RTC_CONFIG = {
+  iceServers: [
+    {urls: 'stun:coturn.noop.live:3478'},
+    {urls: 'turn:coturn.noop.live:3478',
+    username: 'testingonly',
+    credential: 'topsecret'}
+  ]
+};
 
 class Producer {
   constructor(socket, id, eventEmitter) {
@@ -261,6 +268,11 @@ class SFU {
     console.log('Handling Producer Track Event, Track added for:', id);
     this.clients.forEach((client, clientId) => {
       if (clientId === id) {
+        if (client.caughtUp) {
+          return;
+        }
+
+        client.caughtUp = true;
         this.consumerCatchup(clientId);
         return;
       }
@@ -332,6 +344,6 @@ class SFU {
   }
 }
 
-const sfu = new SFU('http://localhost:3000');
+const sfu = new SFU('https://signal.noop.live');
 
 export default httpsServer;
