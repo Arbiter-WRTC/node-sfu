@@ -21,14 +21,7 @@ const app = express();
 const httpsServer = https.createServer(credentials, app);
 
 app.use(cors());
-const RTC_CONFIG = {
-  iceServers: [
-    {urls: 'stun:coturn.noop.live:3478'},
-    {urls: 'turn:coturn.noop.live:3478',
-    username: 'testingonly',
-    credential: 'topsecret'}
-  ]
-};
+const RTC_CONFIG = null;
 
 class Producer {
   constructor(socket, id, eventEmitter) {
