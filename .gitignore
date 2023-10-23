@@ -8,8 +8,11 @@ node_modules
 dist
 dist-ssr
 *.local
+server.crt
+server.key
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 package-lock.json
+
