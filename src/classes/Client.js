@@ -5,9 +5,14 @@ class Client {
   constructor(id, socket, eventEmitter, rtcConfig) {
     this.socket = socket;
     this.id = id;
-    this.rtcConfig = rtcConfig
+    this.rtcConfig = rtcConfig;
     this.eventEmitter = eventEmitter;
-    this.producer = new Producer(this.socket, id, this.eventEmitter, this.rtcConfig);
+    this.producer = new Producer(
+      this.socket,
+      id,
+      this.eventEmitter,
+      this.rtcConfig
+    );
     this.consumers = new Map();
   }
 
@@ -44,6 +49,10 @@ class Client {
       new Consumer(remotePeerId, this.socket, this.id, this.rtcConfig)
     );
     return this.consumers.get(remotePeerId);
+  }
+
+  shareFeatures(id, features) {
+    this.producer.shareFeatures(id, features);
   }
 }
 
