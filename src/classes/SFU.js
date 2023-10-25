@@ -58,7 +58,7 @@ class SFU {
         this.consumerCatchup(clientId);
         return;
       }
-
+      console.log(id, clientId, track.kind)
       client.addConsumerTrack(id, track);
     });
   }
@@ -100,7 +100,6 @@ class SFU {
     if (!client) {
       client = this.addClient(clientId);
     }
-
     client.producerHandshake(description, candidate);
   }
 

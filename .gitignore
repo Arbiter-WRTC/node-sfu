@@ -15,4 +15,5 @@ server.key
 .vscode/*
 !.vscode/extensions.json
 package-lock.json
+coverage
 
