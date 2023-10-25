@@ -20,14 +20,29 @@ class SFU {
     );
   }
 
-  handleFeaturesShared({ id, features }) {
+  handleFeaturesShared({ id, features, initialConnect }) {
+    if (initialConnect) {
+      this.featuresCatchup(id);
+    }
+
     // Now share the features with all other peers
     this.clients.forEach((client, clientId) => {
       if (clientId === id) {
+        client.setFeatures(features);
         return;
       }
 
       client.shareFeatures(id, features);
+    });
+  }
+
+  featuresCatchup(catchupClientId) {
+    const catchupClient = this.findClientById(catchupClientId);
+    this.clients.forEach((client, clientId) => {
+      if (clientId === catchupClientId) {
+        return;
+      }
+      catchupClient.shareFeatures(clientId, client.getFeatures());
     });
   }
 

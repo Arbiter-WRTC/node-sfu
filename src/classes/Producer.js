@@ -10,8 +10,8 @@ class Producer {
     this.addChatChannel();
     this.addFeaturesChannel();
     this.mediaTracks = {};
-
     this.eventEmitter = eventEmitter;
+    this.features = {};
   }
 
   registerConnectionCallbacks() {
@@ -103,6 +103,14 @@ class Producer {
 
   shareFeatures(id, features) {
     this.featuresChannel.send(JSON.stringify({ id, features }));
+  }
+
+  setFeatures(features) {
+    this.features = features;
+  }
+
+  getFeatures() {
+    return this.features;
   }
 }
 

@@ -54,6 +54,14 @@ class Client {
   shareFeatures(id, features) {
     this.producer.shareFeatures(id, features);
   }
+
+  setFeatures(features) {
+    this.producer.setFeatures(features);
+  }
+
+  getFeatures() {
+    return this.producer.getFeatures();
+  }
 }
 
 export default Client;
