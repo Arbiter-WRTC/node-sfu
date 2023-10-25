@@ -9,7 +9,6 @@ class Producer {
     this.isNegotiating = false;
     this.addChatChannel();
     this.mediaTracks = {};
-
     this.eventEmitter = eventEmitter;
   }
 
@@ -29,7 +28,7 @@ class Producer {
   handleRtcPeerTrack({ track }) {
     console.log(`handle incoming ${track.kind} track...`);
     this.mediaTracks[track.kind] = track;
-    this.eventEmitter.emit('producerTrack', { id: this.id, track: track });
+    this.eventEmitter.emit('producerTrack', { id: this.id, track });
   }
 
   handleRtcConnectionStateChange() {

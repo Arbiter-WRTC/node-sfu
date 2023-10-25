@@ -17,6 +17,10 @@ class Client {
 
   consumerHandshake(remotePeerId, description, candidate) {
     const consumer = this.findConsumerById(remotePeerId);
+    if (!consumer) {
+      //TODO throw an error?
+      return;
+    }
     consumer.handshake(description, candidate);
   }
 
