@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import https from 'https';
 import fs from 'fs';
-import SFU from './classes/SFU'
+import SFU from './classes/SFU';
 
 /*
 run this to run SFU locally to generate self-signed certificates
@@ -20,6 +20,7 @@ const httpsServer = https.createServer(credentials, app);
 app.use(cors());
 const RTC_CONFIG = null;
 
-const sfu = new SFU('https://signal.noop.live', RTC_CONFIG);
+// const sfu = new SFU('https://signal.noop.live', RTC_CONFIG);
+const sfu = new SFU('http://localhost:3000', RTC_CONFIG);
 
 export default httpsServer;

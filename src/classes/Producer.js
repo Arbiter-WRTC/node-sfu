@@ -8,9 +8,10 @@ class Producer {
     this.socket = socket;
     this.isNegotiating = false;
     this.addChatChannel();
+    this.addFeaturesChannel();
     this.mediaTracks = {};
-
     this.eventEmitter = eventEmitter;
+    this.features = {};
   }
 
   registerConnectionCallbacks() {
@@ -83,6 +84,33 @@ class Producer {
     this.connection.chatChannel.onmessage = (event) => {
       console.log('Got a chat message from the SFU', event.data);
     };
+  }
+
+  addFeaturesChannel() {
+    this.featuresChannel = this.connection.createDataChannel('features', {
+      negotiated: true,
+      id: 110,
+    });
+
+    this.featuresChannel.onopen = (event) => {
+      console.log('Features channel open');
+    };
+
+    this.featuresChannel.onmessage = ({ data }) => {
+      this.eventEmitter.emit('featuresShared', JSON.parse(data));
+    };
+  }
+
+  shareFeatures(id, features) {
+    this.featuresChannel.send(JSON.stringify({ id, features }));
+  }
+
+  setFeatures(features) {
+    this.features = features;
+  }
+
+  getFeatures() {
+    return this.features;
   }
 }
 
