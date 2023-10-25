@@ -65,6 +65,10 @@ class Consumer {
     console.log(`State changed to ${this.connection.connectionState}`);
   }
 
+  closeConnection() {
+    this.connection.close();
+  }
+
   // addChatChannel() {
   //   console.log('trying to add a chat channel');
   //   this.connection.chatChannel = this.connection.createDataChannel('chat', {
