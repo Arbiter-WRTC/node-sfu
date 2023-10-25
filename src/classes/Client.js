@@ -66,6 +66,11 @@ class Client {
   getFeatures() {
     return this.producer.getFeatures();
   }
+
+  pruneClient() {
+    this.producer.closeConnection();
+    this.consumers.forEach(consumer => consumer.closeConnection());
+  }
 }
 
 export default Client;

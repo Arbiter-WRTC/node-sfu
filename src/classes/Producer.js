@@ -112,6 +112,10 @@ class Producer {
   getFeatures() {
     return this.features;
   }
+
+  closeConnection() {
+    this.connection.close();
+  }
 }
 
 export default Producer;

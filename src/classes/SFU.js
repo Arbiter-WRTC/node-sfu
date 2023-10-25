@@ -58,7 +58,7 @@ class SFU {
         this.consumerCatchup(clientId);
         return;
       }
-      console.log(id, clientId, track.kind)
+      console.log(id, clientId, track.kind);
       client.addConsumerTrack(id, track);
     });
   }
@@ -87,6 +87,7 @@ class SFU {
       'consumerHandshake',
       this.handleConsumerHandshake.bind(this)
     );
+    this.socket.on('clientDisconnect', this.handleClientDisconnect.bind(this));
   }
 
   handleConnect() {
@@ -113,6 +114,23 @@ class SFU {
     if (client) {
       client.consumerHandshake(remotePeerId, description, candidate);
     }
+  }
+
+  async handleClientDisconnect({ clientId }) {
+    // find the offending client, close all of their consumer connections, then close their connection
+    // iterate through the rest of the clients, close all of their consumer connections that match the client id
+    const closedClient = this.findClientById(clientId);
+    console.log('to delete', closedClient)
+    await closedClient.pruneClient();
+    this.clients.delete(clientId);
+    console.log('should be undefined', this.findClientById(clientId)
+    )
+    this.clients.forEach((client) => {
+      const toCloseConsumer = client.findConsumerById(clientId);
+      toCloseConsumer.closeConnection();
+      console.log('deleted', clientId)
+      client.consumers.delete(clientId);
+    });
   }
 
   addClient(id) {
