@@ -5,6 +5,7 @@ import fs from 'fs';
 import SFU from './classes/SFU'
 import 'dotenv/config'
 
+
 /*
 run this to run SFU locally to generate self-signed certificates
 UBUNTU: openssl req -new -neopenssl req -new -newkey rsa:2048 -days 365 -nodes -x509 -keyout server.key -out server.crt

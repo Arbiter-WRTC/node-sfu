@@ -1,4 +1,4 @@
-import Client from './Client'
+import Client from './Client';
 import io from 'socket.io-client';
 import EventEmitter from 'events';
 
@@ -14,6 +14,36 @@ class SFU {
 
   bindClientEvents() {
     this.eventEmitter.on('producerTrack', this.handleProducerTrack.bind(this));
+    this.eventEmitter.on(
+      'featuresShared',
+      this.handleFeaturesShared.bind(this)
+    );
+  }
+
+  handleFeaturesShared({ id, features, initialConnect }) {
+    if (initialConnect) {
+      this.featuresCatchup(id);
+    }
+
+    // Now share the features with all other peers
+    this.clients.forEach((client, clientId) => {
+      if (clientId === id) {
+        client.setFeatures(features);
+        return;
+      }
+
+      client.shareFeatures(id, features);
+    });
+  }
+
+  featuresCatchup(catchupClientId) {
+    const catchupClient = this.findClientById(catchupClientId);
+    this.clients.forEach((client, clientId) => {
+      if (clientId === catchupClientId) {
+        return;
+      }
+      catchupClient.shareFeatures(clientId, client.getFeatures());
+    });
   }
 
   handleProducerTrack({ id, track }) {
@@ -86,7 +116,10 @@ class SFU {
   }
 
   addClient(id) {
-    this.clients.set(id, new Client(id, this.socket, this.eventEmitter, this.rtcConfig));
+    this.clients.set(
+      id,
+      new Client(id, this.socket, this.eventEmitter, this.rtcConfig)
+    );
     return this.clients.get(id);
   }
 
