@@ -1,8 +1,9 @@
 import { RTCPeerConnection } from 'wrtc';
 
 class Producer {
-  constructor(socket, id, eventEmitter, rtcConfig) {
-    this.id = id;
+  constructor(sfuId, clientId, socket, eventEmitter, rtcConfig) {
+    this.sfuId = sfuId;
+    this.clientId = clientId;
     this.connection = new RTCPeerConnection(rtcConfig);
     this.registerConnectionCallbacks();
     this.socket = socket;
@@ -12,6 +13,8 @@ class Producer {
     this.mediaTracks = {};
     this.eventEmitter = eventEmitter;
     this.features = {};
+
+    this.queuedCandidates = [];
   }
 
   registerConnectionCallbacks() {
@@ -23,30 +26,57 @@ class Producer {
 
   handleRtcIceCandidate({ candidate }) {
     if (candidate) {
-      this.socket.emit('producerHandshake', { candidate, clientId: this.id });
+      const payload = {
+        action: 'handshake',
+        data: {
+          type: 'producer',
+          sender: this.sfuId,
+          receiver: this.clientId,
+          candidate: candidate,
+        },
+      };
+      console.log('Sending producer ice as', this.sfuId);
+      console.log('receiver is:', this.clientId);
+      this.socket.send(JSON.stringify(payload));
     }
   }
 
   handleRtcPeerTrack({ track }) {
     console.log(`handle incoming ${track.kind} track...`);
     this.mediaTracks[track.kind] = track;
-    this.eventEmitter.emit('producerTrack', { id: this.id, track });
+    this.eventEmitter.emit('producerTrack', { id: this.clientId, track });
   }
 
   handleRtcConnectionStateChange() {
     console.log(`State changed to ${this.connection.connectionState}`);
   }
 
-  async handshake(description, candidate) {
+  modifyIceAttributes(sdp) {
+    const iceAttributesRegex = /a=(ice-pwd:|ice-ufrag:)(.*)/gi;
+    const modifiedSdp = sdp.replace(
+      iceAttributesRegex,
+      (match, attribute, value) => {
+        // Replace spaces with '+'
+        const modifiedValue = value.replace(/ /g, '+');
+        return `a=${attribute}${modifiedValue}`;
+      }
+    );
+    return modifiedSdp;
+  }
+
+  async handshake(data) {
+    console.log(data);
+    const { description, candidate } = data;
     if (description) {
       console.log('trying to negotiate', description.type);
 
-      if (this.isNegotiating) {
-        console.log('Skipping nested negotiations');
+      if (this.isNegotiating || this.connection.remoteDescription !== null) {
+        console.log('Skipping negotiation');
         return;
       }
 
       this.isNegotiating = true;
+      description.sdp = this.modifyIceAttributes(description.sdp);
       await this.connection.setRemoteDescription(description);
       this.isNegotiating = false;
 
@@ -55,16 +85,51 @@ class Producer {
         await this.connection.setLocalDescription(answer);
 
         console.log(
-          `Sending ${this.connection.localDescription.type} to ${this.id}`
+          `Sending ${this.connection.localDescription.type} to ${this.clientId}`
         );
-        this.socket.emit('producerHandshake', {
-          description: this.connection.localDescription,
-          clientId: this.id,
-        });
+
+        const payload = {
+          action: 'handshake',
+          data: {
+            type: 'producer',
+            sender: this.sfuId,
+            receiver: this.clientId,
+            description: this.connection.localDescription,
+          },
+        };
+
+        console.log('Sending producer answer');
+        console.log('Receiver is:', this.clientId);
+
+        this.socket.send(JSON.stringify(payload));
+        this.processQueuedCandidates();
       }
     } else if (candidate) {
       try {
-        console.log('Adding an ice candidate');
+        this.handleReceivedIceCandidate(candidate);
+      } catch (e) {
+        if (candidate.candidate.length > 1) {
+          console.log('unable to add ICE candidate for peer', e);
+        }
+      }
+    }
+  }
+
+  async handleReceivedIceCandidate(candidate) {
+    if (this.connection.remoteDescription === null) {
+      console.log('Caching candidate');
+      this.queuedCandidates.push(candidate);
+    } else {
+      console.log('Adding an ice candidate');
+      await this.connection.addIceCandidate(candidate);
+    }
+  }
+
+  async processQueuedCandidates() {
+    console.log('Processing cached candidates IN PRODUCER');
+    while (this.queuedCandidates.length > 0) {
+      const candidate = this.queuedCandidates.shift();
+      try {
         await this.connection.addIceCandidate(candidate);
       } catch (e) {
         if (candidate.candidate.length > 1) {
@@ -102,7 +167,9 @@ class Producer {
   }
 
   shareFeatures(id, features) {
-    this.featuresChannel.send(JSON.stringify({ id, features }));
+    if (this.featuresChannel.readyState == 'open') {
+      this.featuresChannel.send(JSON.stringify({ id, features }));
+    }
   }
 
   setFeatures(features) {

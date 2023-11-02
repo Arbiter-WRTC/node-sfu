@@ -2,31 +2,34 @@ import Producer from './Producer';
 import Consumer from './Consumer';
 
 class Client {
-  constructor(id, socket, eventEmitter, rtcConfig) {
+  constructor(sfuId, clientId, socket, eventEmitter, rtcConfig) {
     this.socket = socket;
-    this.id = id;
+    this.sfuId = sfuId;
+    this.clientId = clientId;
     this.rtcConfig = rtcConfig;
     this.eventEmitter = eventEmitter;
     this.producer = new Producer(
+      this.sfuId,
+      this.clientId,
       this.socket,
-      id,
       this.eventEmitter,
       this.rtcConfig
     );
     this.consumers = new Map();
   }
 
-  producerHandshake(description, candidate) {
-    this.producer.handshake(description, candidate);
+  producerHandshake(data) {
+    this.producer.handshake(data);
   }
 
-  consumerHandshake(remotePeerId, description, candidate) {
+  consumerHandshake(data) {
+    const { remotePeerId } = data;
     const consumer = this.findConsumerById(remotePeerId);
     if (!consumer) {
       //TODO throw an error?
       return;
     }
-    consumer.handshake(description, candidate);
+    consumer.handshake(data);
   }
 
   getProducerTrack(kind) {
@@ -50,7 +53,13 @@ class Client {
     console.log('a new consumer is added');
     this.consumers.set(
       remotePeerId,
-      new Consumer(remotePeerId, this.socket, this.id, this.rtcConfig)
+      new Consumer(
+        this.sfuId,
+        this.clientId,
+        remotePeerId,
+        this.socket,
+        this.rtcConfig
+      )
     );
     return this.consumers.get(remotePeerId);
   }
@@ -69,7 +78,7 @@ class Client {
 
   pruneClient() {
     this.producer.closeConnection();
-    this.consumers.forEach(consumer => consumer.closeConnection());
+    this.consumers.forEach((consumer) => consumer.closeConnection());
   }
 }
 

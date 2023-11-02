@@ -2,9 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import https from 'https';
 import fs from 'fs';
-import SFU from './classes/SFU'
-import 'dotenv/config'
-
+import SFU from './classes/SFU';
+import 'dotenv/config';
 
 /*
 run this to run SFU locally to generate self-signed certificates
@@ -21,7 +20,10 @@ const httpsServer = https.createServer(credentials, app);
 
 app.use(cors());
 const RTC_CONFIG = JSON.parse(process.env.RTC_CONFIG) || null;
-const SIGNAL_SERVER_URL = process.env.SIGNAL_SERVER_URL;
+// const SIGNAL_SERVER_URL = process.env.SIGNAL_SERVER_URL;
+
+const SIGNAL_SERVER_URL =
+  'wss://rufdlv7k6k.execute-api.us-east-2.amazonaws.com/production';
 
 const sfu = new SFU(SIGNAL_SERVER_URL, RTC_CONFIG);
 

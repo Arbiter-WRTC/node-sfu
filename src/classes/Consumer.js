@@ -1,14 +1,17 @@
 import { RTCPeerConnection } from 'wrtc';
 
 class Consumer {
-  constructor(remotePeerId, socket, clientId, rtcConfig) {
+  constructor(sfuId, clientId, remotePeerId, socket, rtcConfig) {
+    this.sfuId = sfuId;
     this.clientId = clientId;
-    this.connection = new RTCPeerConnection(rtcConfig);
     this.remotePeerId = remotePeerId;
+    this.connection = new RTCPeerConnection(rtcConfig);
     this.socket = socket;
     this.mediaTracks = {};
     this.registerConnectionCallbacks();
     //this.addChatChannel();
+
+    this.queuedCandidates = [];
   }
 
   registerConnectionCallbacks() {
@@ -21,11 +24,18 @@ class Consumer {
 
   handleRtcIceCandidate({ candidate }) {
     if (candidate) {
-      this.socket.emit('consumerHandshake', {
-        candidate,
-        clientId: this.clientId,
-        remotePeerId: this.remotePeerId,
-      });
+      const payload = {
+        action: 'handshake',
+        data: {
+          type: 'consumer',
+          sender: this.sfuId,
+          receiver: this.clientId,
+          remotePeerId: this.remotePeerId,
+          candidate: candidate,
+        },
+      };
+      console.log('Sending a candidate:', payload);
+      this.socket.send(JSON.stringify(payload));
     }
   }
 
@@ -34,28 +44,78 @@ class Consumer {
     const offer = await this.connection.createOffer();
     await this.connection.setLocalDescription(offer);
     console.log(this.clientId);
-    this.socket.emit('consumerHandshake', {
-      description: this.connection.localDescription,
-      clientId: this.clientId,
-      remotePeerId: this.remotePeerId,
-    });
+
+    const payload = {
+      action: 'handshake',
+      data: {
+        type: 'consumer',
+        sender: this.sfuId,
+        receiver: this.clientId,
+        remotePeerId: this.remotePeerId,
+        description: this.connection.localDescription,
+      },
+    };
+
+    console.log('Sending consumer offer');
+    console.log(payload);
+
+    this.socket.send(JSON.stringify(payload));
   }
 
   addTrack(track) {
     this.connection.addTrack(track);
   }
 
-  async handshake(description, candidate) {
+  modifyIceAttributes(sdp) {
+    const iceAttributesRegex = /a=(ice-pwd:|ice-ufrag:)(.*)/gi;
+    const modifiedSdp = sdp.replace(
+      iceAttributesRegex,
+      (match, attribute, value) => {
+        // Replace spaces with '+'
+        const modifiedValue = value.replace(/ /g, '+');
+        return `a=${attribute}${modifiedValue}`;
+      }
+    );
+    return modifiedSdp;
+  }
+
+  async handshake(data) {
+    const { description, candidate } = data;
     if (description) {
       console.log('Got a description, setting');
+      description.sdp = this.modifyIceAttributes(description.sdp);
       await this.connection.setRemoteDescription(description);
+      this.processQueuedCandidates();
     } else if (candidate) {
       try {
-        console.log('Adding ice candidate from client');
+        this.handleReceivedIceCandidate(candidate);
+      } catch (e) {
+        if (candidate.candidate.length > 1) {
+          console.log('unable to add ICE candidate for peer', e);
+        }
+      }
+    }
+  }
+
+  async handleReceivedIceCandidate(candidate) {
+    if (this.connection.remoteDescription === null) {
+      console.log('Caching candidate');
+      this.queuedCandidates.push(candidate);
+    } else {
+      console.log('Adding an ice candidate');
+      await this.connection.addIceCandidate(candidate);
+    }
+  }
+
+  async processQueuedCandidates() {
+    console.log('Processing cached candidates IN PRODUCER');
+    while (this.queuedCandidates.length > 0) {
+      const candidate = this.queuedCandidates.shift();
+      try {
         await this.connection.addIceCandidate(candidate);
       } catch (e) {
         if (candidate.candidate.length > 1) {
-          console.log('unable to add ICE candidate for SFU', e);
+          console.log('unable to add ICE candidate for peer', e);
         }
       }
     }
