@@ -13,7 +13,6 @@ class Producer {
     this.mediaTracks = {};
     this.eventEmitter = eventEmitter;
     this.features = {};
-
     this.queuedCandidates = [];
   }
 
@@ -35,14 +34,11 @@ class Producer {
           candidate: candidate,
         },
       };
-      console.log('Sending producer ice as', this.sfuId);
-      console.log('receiver is:', this.clientId);
       this.socket.send(JSON.stringify(payload));
     }
   }
 
   handleRtcPeerTrack({ track }) {
-    console.log(`handle incoming ${track.kind} track...`);
     this.mediaTracks[track.kind] = track;
     this.eventEmitter.emit('producerTrack', { id: this.clientId, track });
   }
@@ -55,7 +51,7 @@ class Producer {
     const iceAttributesRegex = /a=(ice-pwd:|ice-ufrag:)(.*)/gi;
     const modifiedSdp = sdp.replace(
       iceAttributesRegex,
-      (match, attribute, value) => {
+      (_, attribute, value) => {
         // Replace spaces with '+'
         const modifiedValue = value.replace(/ /g, '+');
         return `a=${attribute}${modifiedValue}`;
@@ -68,10 +64,7 @@ class Producer {
     console.log(data);
     const { description, candidate } = data;
     if (description) {
-      console.log('trying to negotiate', description.type);
-
       if (this.isNegotiating || this.connection.remoteDescription !== null) {
-        console.log('Skipping negotiation');
         return;
       }
 
@@ -84,10 +77,6 @@ class Producer {
         const answer = await this.connection.createAnswer();
         await this.connection.setLocalDescription(answer);
 
-        console.log(
-          `Sending ${this.connection.localDescription.type} to ${this.clientId}`
-        );
-
         const payload = {
           action: 'handshake',
           data: {
@@ -98,15 +87,14 @@ class Producer {
           },
         };
 
-        console.log('Sending producer answer');
-        console.log('Receiver is:', this.clientId);
-
         this.socket.send(JSON.stringify(payload));
         this.processQueuedCandidates();
       }
     } else if (candidate) {
       try {
-        this.handleReceivedIceCandidate(candidate);
+        if (candidate.candidate.length > 1) {
+          this.handleReceivedIceCandidate(candidate);
+        }
       } catch (e) {
         if (candidate.candidate.length > 1) {
           console.log('unable to add ICE candidate for peer', e);
@@ -117,16 +105,13 @@ class Producer {
 
   async handleReceivedIceCandidate(candidate) {
     if (this.connection.remoteDescription === null) {
-      console.log('Caching candidate');
       this.queuedCandidates.push(candidate);
     } else {
-      console.log('Adding an ice candidate');
       await this.connection.addIceCandidate(candidate);
     }
   }
 
   async processQueuedCandidates() {
-    console.log('Processing cached candidates IN PRODUCER');
     while (this.queuedCandidates.length > 0) {
       const candidate = this.queuedCandidates.shift();
       try {
@@ -140,12 +125,10 @@ class Producer {
   }
 
   addChatChannel() {
-    console.log('trying to add a chat channel');
     this.connection.chatChannel = this.connection.createDataChannel('chat', {
       negotiated: true,
       id: 100,
     });
-    // this.connection.chatChannel.send('Hello from the SFU');
     this.connection.chatChannel.onmessage = (event) => {
       console.log('Got a chat message from the SFU', event.data);
     };

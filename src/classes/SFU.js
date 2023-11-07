@@ -1,17 +1,17 @@
 import Client from './Client';
-import io from 'socket.io-client';
 import EventEmitter from 'events';
-import { v4 as uuidv4 } from 'uuid';
 import WebSocket from 'ws';
 
 class SFU {
-  constructor(socketUrl, rtcConfig) {
-    this.sfuId = uuidv4();
+  constructor(socketUrl, rtcConfig, sfuId) {
+    this.sfuId = sfuId;
     this.rtcConfig = rtcConfig;
     this.clients = new Map();
-    // this.socket = io(socketUrl);
     this.socket = new WebSocket(socketUrl);
     this.eventEmitter = new EventEmitter();
+  }
+
+  listen() {
     this.bindSocketEvents();
     this.bindClientEvents();
   }
@@ -29,7 +29,6 @@ class SFU {
       this.featuresCatchup(id);
     }
 
-    // Now share the features with all other peers
     this.clients.forEach((client, clientId) => {
       if (clientId === id) {
         client.setFeatures(features);
@@ -51,7 +50,6 @@ class SFU {
   }
 
   handleProducerTrack({ id, track }) {
-    console.log('Handling Producer Track Event, Track added for:', id);
     this.clients.forEach((client, clientId) => {
       if (clientId === id) {
         if (client.caughtUp) {
@@ -62,7 +60,6 @@ class SFU {
         this.consumerCatchup(clientId);
         return;
       }
-      console.log(id, clientId, track.kind);
       client.addConsumerTrack(id, track);
     });
   }
@@ -82,17 +79,6 @@ class SFU {
   }
 
   bindSocketEvents() {
-    // this.socket.on('connect', this.handleConnect.bind(this));
-    // this.socket.on(
-    //   'producerHandshake',
-    //   this.handleProducerHandshake.bind(this)
-    // );
-    // this.socket.on(
-    //   'consumerHandshake',
-    //   this.handleConsumerHandshake.bind(this)
-    // );
-    // this.socket.on('clientDisconnect', this.handleClientDisconnect.bind(this));
-
     this.socket.addEventListener('open', this.handleConnect.bind(this));
     this.socket.addEventListener('message', this.handleMessage.bind(this));
   }
@@ -113,7 +99,6 @@ class SFU {
   }
 
   handleMessage(e) {
-    console.log('Got a message');
     const data = JSON.parse(e.data);
 
     if (data.connectionId) {
@@ -122,12 +107,12 @@ class SFU {
 
     switch (data.type) {
       case 'producer':
-        console.log('Got a producer handshake');
+        console.log('producer!');
         this.handleProducerHandshake(data);
         break;
 
       case 'consumer':
-        console.log('Got a consumer handshake');
+        console.log('consumer!');
         this.handleConsumerHandshake(data);
         break;
 
@@ -135,11 +120,6 @@ class SFU {
         console.log('invalid handshake type');
     }
   }
-
-  // handleConnect() {
-  //   console.log('connected to websocket server');
-  //   this.socket.emit('clientConnect', { type: 'sfu' });
-  // }
 
   async handleProducerHandshake(data) {
     const { sender } = data;
@@ -160,24 +140,17 @@ class SFU {
   }
 
   async handleClientDisconnect({ clientId }) {
-    // find the offending client, close all of their consumer connections, then close their connection
-    // iterate through the rest of the clients, close all of their consumer connections that match the client id
     const closedClient = this.findClientById(clientId);
-    console.log('to delete', closedClient);
     await closedClient.pruneClient();
     this.clients.delete(clientId);
-    console.log('should be undefined', this.findClientById(clientId));
     this.clients.forEach((client) => {
       const toCloseConsumer = client.findConsumerById(clientId);
       toCloseConsumer.closeConnection();
-      console.log('deleted', clientId);
       client.consumers.delete(clientId);
     });
   }
 
-  addClient(clientId) {
-    console.log('Adding new Client:', clientId);
-
+  addClient(clientId) { 
     this.clients.set(
       clientId,
       new Client(

@@ -26,7 +26,7 @@ class Client {
     const { remotePeerId } = data;
     const consumer = this.findConsumerById(remotePeerId);
     if (!consumer) {
-      //TODO throw an error?
+      console.log('error: consumer not found')
       return;
     }
     consumer.handshake(data);
@@ -50,7 +50,6 @@ class Client {
   }
 
   createConsumer(remotePeerId) {
-    console.log('a new consumer is added');
     this.consumers.set(
       remotePeerId,
       new Consumer(
