@@ -16,8 +16,6 @@ class Consumer {
 
   registerConnectionCallbacks() {
     this.connection.onicecandidate = this.handleRtcIceCandidate.bind(this);
-    this.connection.onconnectionstatechange =
-      this.handleRtcConnectionStateChange.bind(this);
     this.connection.onnegotiationneeded =
       this.handleRtcConnectionNegotiation.bind(this);
   }
@@ -34,16 +32,13 @@ class Consumer {
           candidate: candidate,
         },
       };
-      console.log('Sending a candidate:', payload);
       this.socket.send(JSON.stringify(payload));
     }
   }
 
   async handleRtcConnectionNegotiation() {
-    console.log('Consumer attempting offer ...');
     const offer = await this.connection.createOffer();
     await this.connection.setLocalDescription(offer);
-    console.log(this.clientId);
 
     const payload = {
       action: 'handshake',
@@ -56,9 +51,6 @@ class Consumer {
       },
     };
 
-    console.log('Sending consumer offer');
-    console.log(payload);
-
     this.socket.send(JSON.stringify(payload));
   }
 
@@ -70,7 +62,7 @@ class Consumer {
     const iceAttributesRegex = /a=(ice-pwd:|ice-ufrag:)(.*)/gi;
     const modifiedSdp = sdp.replace(
       iceAttributesRegex,
-      (match, attribute, value) => {
+      (_, attribute, value) => {
         // Replace spaces with '+'
         const modifiedValue = value.replace(/ /g, '+');
         return `a=${attribute}${modifiedValue}`;
@@ -80,15 +72,17 @@ class Consumer {
   }
 
   async handshake(data) {
+    console.log(data);
     const { description, candidate } = data;
     if (description) {
-      console.log('Got a description, setting');
       description.sdp = this.modifyIceAttributes(description.sdp);
       await this.connection.setRemoteDescription(description);
       this.processQueuedCandidates();
     } else if (candidate) {
       try {
-        this.handleReceivedIceCandidate(candidate);
+        if (candidate.candidate.length > 1) {
+          this.handleReceivedIceCandidate(candidate);
+        }
       } catch (e) {
         if (candidate.candidate.length > 1) {
           console.log('unable to add ICE candidate for peer', e);
@@ -99,16 +93,13 @@ class Consumer {
 
   async handleReceivedIceCandidate(candidate) {
     if (this.connection.remoteDescription === null) {
-      console.log('Caching candidate');
       this.queuedCandidates.push(candidate);
     } else {
-      console.log('Adding an ice candidate');
       await this.connection.addIceCandidate(candidate);
     }
   }
 
   async processQueuedCandidates() {
-    console.log('Processing cached candidates IN PRODUCER');
     while (this.queuedCandidates.length > 0) {
       const candidate = this.queuedCandidates.shift();
       try {
@@ -119,10 +110,6 @@ class Consumer {
         }
       }
     }
-  }
-
-  handleRtcConnectionStateChange() {
-    console.log(`State changed to ${this.connection.connectionState}`);
   }
 
   closeConnection() {
