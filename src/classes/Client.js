@@ -26,7 +26,7 @@ class Client {
     const { remotePeerId } = data;
     const consumer = this.findConsumerById(remotePeerId);
     if (!consumer) {
-      console.log('error: consumer not found')
+      console.log('error: consumer not found');
       return;
     }
     consumer.handshake(data);
@@ -78,6 +78,10 @@ class Client {
   pruneClient() {
     this.producer.closeConnection();
     this.consumers.forEach((consumer) => consumer.closeConnection());
+  }
+
+  sendChatMessage(data) {
+    this.producer.sendChatMessage(data);
   }
 }
 

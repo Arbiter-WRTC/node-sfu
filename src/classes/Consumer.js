@@ -75,7 +75,7 @@ class Consumer {
     console.log(data);
     const { description, candidate } = data;
     if (description) {
-      description.sdp = this.modifyIceAttributes(description.sdp);
+      // description.sdp = this.modifyIceAttributes(description.sdp);
       await this.connection.setRemoteDescription(description);
       this.processQueuedCandidates();
     } else if (candidate) {

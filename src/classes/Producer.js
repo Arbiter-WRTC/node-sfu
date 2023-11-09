@@ -69,7 +69,7 @@ class Producer {
       }
 
       this.isNegotiating = true;
-      description.sdp = this.modifyIceAttributes(description.sdp);
+      // description.sdp = this.modifyIceAttributes(description.sdp);
       await this.connection.setRemoteDescription(description);
       this.isNegotiating = false;
 
@@ -129,9 +129,21 @@ class Producer {
       negotiated: true,
       id: 100,
     });
-    this.connection.chatChannel.onmessage = (event) => {
-      console.log('Got a chat message from the SFU', event.data);
-    };
+    this.connection.chatChannel.onmessage = this.handleChatMessage.bind(this);
+  }
+
+  handleChatMessage(event) {
+    console.log(event);
+    const data = JSON.parse(event.data);
+    this.eventEmitter.emit('chatMessage', data);
+  }
+
+  sendChatMessage(data) {
+    console.log(
+      `In the other connected Producer (${this.clientId}), gonna send a chat message`
+    );
+    console.log(data);
+    this.connection.chatChannel.send(JSON.stringify(data));
   }
 
   addFeaturesChannel() {
