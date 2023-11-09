@@ -26,10 +26,9 @@ class SFU {
   }
 
   handleChatMessage(data) {
-    console.log('Got a chat message IN SFU Class');
     console.log(data);
     this.clients.forEach((client, clientId) => {
-      if (clientId === data.sender) {
+      if (clientId === data.id) {
         return;
       }
 
