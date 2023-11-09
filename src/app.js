@@ -21,9 +21,11 @@ const httpsServer = https.createServer(credentials, app);
 app.use(cors());
 const RTC_CONFIG = JSON.parse(process.env.RTC_CONFIG) || null;
 const SIGNAL_SERVER_URL = process.env.SIGNAL_SERVER_URL;
-const SFU_ID = process.env.SFU_ID
+const SFU_ID = process.env.SFU_ID;
 if (!SFU_ID || !RTC_CONFIG || !SIGNAL_SERVER_URL) {
-  throw new Error("A valid .env configuration file needs to be included to run this server. Please refer to the documentation for more details.")
+  throw new Error(
+    'A valid .env configuration file needs to be included to run this server. Please refer to the documentation for more details.'
+  );
 }
 const sfu = new SFU(SIGNAL_SERVER_URL, RTC_CONFIG, SFU_ID);
 sfu.listen();

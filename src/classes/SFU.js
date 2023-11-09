@@ -22,6 +22,19 @@ class SFU {
       'featuresShared',
       this.handleFeaturesShared.bind(this)
     );
+    this.eventEmitter.on('chatMessage', this.handleChatMessage.bind(this));
+  }
+
+  handleChatMessage(data) {
+    console.log('Got a chat message IN SFU Class');
+    console.log(data);
+    this.clients.forEach((client, clientId) => {
+      if (clientId === data.sender) {
+        return;
+      }
+
+      client.sendChatMessage(data);
+    });
   }
 
   handleFeaturesShared({ id, features, initialConnect }) {
@@ -150,7 +163,7 @@ class SFU {
     });
   }
 
-  addClient(clientId) { 
+  addClient(clientId) {
     this.clients.set(
       clientId,
       new Client(
