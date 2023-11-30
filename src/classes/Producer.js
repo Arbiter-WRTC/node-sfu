@@ -133,17 +133,14 @@ class Producer {
   }
 
   handleChatMessage(event) {
-    console.log(event);
     const data = JSON.parse(event.data);
     this.eventEmitter.emit('chatMessage', data);
   }
 
   sendChatMessage(data) {
-    console.log(
-      `In the other connected Producer (${this.clientId}), gonna send a chat message`
-    );
-    console.log(data);
-    this.connection.chatChannel.send(JSON.stringify(data));
+    if (this.connection.chatChannel.readyState == 'open') {
+      this.connection.chatChannel.send(JSON.stringify(data));
+    }
   }
 
   addFeaturesChannel() {

@@ -26,10 +26,9 @@ class SFU {
   }
 
   handleChatMessage(data) {
-    console.log('Got a chat message IN SFU Class');
     console.log(data);
     this.clients.forEach((client, clientId) => {
-      if (clientId === data.sender) {
+      if (clientId === data.id) {
         return;
       }
 
@@ -127,6 +126,11 @@ class SFU {
       case 'consumer':
         console.log('consumer!');
         this.handleConsumerHandshake(data);
+        break;
+
+      case 'clientDisconnect':
+        console.log('Got a Client Disconnect Message:', data);
+        this.handleClientDisconnect(data);
         break;
 
       default:
