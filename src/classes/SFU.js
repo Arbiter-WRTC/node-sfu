@@ -128,6 +128,11 @@ class SFU {
         this.handleConsumerHandshake(data);
         break;
 
+      case 'clientDisconnect':
+        console.log('Got a Client Disconnect Message:', data);
+        this.handleClientDisconnect(data);
+        break;
+
       default:
         console.log('invalid handshake type');
     }
