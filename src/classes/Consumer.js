@@ -9,8 +9,6 @@ class Consumer {
     this.socket = socket;
     this.mediaTracks = {};
     this.registerConnectionCallbacks();
-    //this.addChatChannel();
-
     this.queuedCandidates = [];
   }
 
@@ -72,10 +70,8 @@ class Consumer {
   }
 
   async handshake(data) {
-    console.log(data);
     const { description, candidate } = data;
     if (description) {
-      // description.sdp = this.modifyIceAttributes(description.sdp);
       await this.connection.setRemoteDescription(description);
       this.processQueuedCandidates();
     } else if (candidate) {
@@ -115,18 +111,6 @@ class Consumer {
   closeConnection() {
     this.connection.close();
   }
-
-  // addChatChannel() {
-  //   console.log('trying to add a chat channel');
-  //   this.connection.chatChannel = this.connection.createDataChannel('chat', {
-  //     negotiated: true,
-  //     id: 100,
-  //   });
-  //   // this.connection.chatChannel.send('Hello from the SFU');
-  //   this.connection.chatChannel.onmessage = (event) => {
-  //     console.log('Got a chat message from the SFU', event.data);
-  //   };
-  // }
 }
 
 export default Consumer;

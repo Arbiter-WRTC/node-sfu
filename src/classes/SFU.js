@@ -106,30 +106,22 @@ class SFU {
       },
     };
 
-    console.log('Identifying...', this.sfuId);
     this.socket.send(JSON.stringify(payload));
   }
 
   handleMessage(e) {
     const data = JSON.parse(e.data);
 
-    if (data.connectionId) {
-      console.log(data);
-    }
-
     switch (data.type) {
       case 'producer':
-        console.log('producer!');
         this.handleProducerHandshake(data);
         break;
 
       case 'consumer':
-        console.log('consumer!');
         this.handleConsumerHandshake(data);
         break;
 
       case 'clientDisconnect':
-        console.log('Got a Client Disconnect Message:', data);
         this.handleClientDisconnect(data);
         break;
 

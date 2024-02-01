@@ -61,7 +61,6 @@ class Producer {
   }
 
   async handshake(data) {
-    console.log(data);
     const { description, candidate } = data;
     if (description) {
       if (this.isNegotiating || this.connection.remoteDescription !== null) {
@@ -69,7 +68,6 @@ class Producer {
       }
 
       this.isNegotiating = true;
-      // description.sdp = this.modifyIceAttributes(description.sdp);
       await this.connection.setRemoteDescription(description);
       this.isNegotiating = false;
 
